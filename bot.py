@@ -1,7 +1,7 @@
 import asyncio
 import random
 import os
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 
@@ -19,34 +19,55 @@ EXCUSES = [
     "🔄 Технические работы. Задержка до 72 часов."
 ]
 
-main_kb = ReplyKeyboardMarkup(resize_keyboard=True)
-main_kb.add(KeyboardButton("🌟 Купить звёзды"), KeyboardButton("🆔 Мой ID"))
+# ✅ ИСПРАВЛЕННАЯ клавиатура
+main_kb = ReplyKeyboardMarkup(
+    keyboard=[
+        [KeyboardButton(text="🌟 Купить звёзды")],
+        [KeyboardButton(text="🆔 Мой ID")]
+    ],
+    resize_keyboard=True
+)
 
 @dp.message(Command("start"))
 async def start(message: types.Message):
-    await message.answer(f"🌟 Добро пожаловать!\nВаш ID: `{message.from_user.id}`", parse_mode="Markdown", reply_markup=main_kb)
+    await message.answer(
+        f"🌟 Добро пожаловать!\nВаш ID: `{message.from_user.id}`",
+        parse_mode="Markdown",
+        reply_markup=main_kb
+    )
 
-@dp.message(lambda message: message.text == "🆔 Мой ID")
+@dp.message(F.text == "🆔 Мой ID")
 async def show_id(message: types.Message):
     bot_id = (await bot.get_me()).id
-    await message.answer(f"🆔 Ваш ID: `{message.from_user.id}`\n🤖 ID бота: `{bot_id}`", parse_mode="Markdown")
+    await message.answer(
+        f"🆔 Ваш ID: `{message.from_user.id}`\n🤖 ID бота: `{bot_id}`",
+        parse_mode="Markdown"
+    )
 
-@dp.message(lambda message: message.text == "🌟 Купить звёзды")
+@dp.message(F.text == "🌟 Купить звёзды")
 async def buy(message: types.Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="100 ⭐ - 5 USDT", callback_data="buy")]
+        [InlineKeyboardButton(text="100 ⭐ - 5 USDT", callback_data="buy_100")]
     ])
     await message.answer("Выберите количество:", reply_markup=kb)
 
-@dp.callback_query(lambda c: c.data == "buy")
+@dp.callback_query(F.data == "buy_100")
 async def process_buy(callback: types.CallbackQuery):
     wallet = random.choice(WALLETS)
-    await callback.message.edit_text(f"💰 Оплатите на кошелёк:\n`{wallet}`\n\nПришлите скрин чека и TXID.\n\n🆔 Ваш ID: `{callback.from_user.id}`", parse_mode="Markdown")
+    await callback.message.edit_text(
+        f"💰 Оплатите на кошелёк:\n`{wallet}`\n\n"
+        f"Пришлите скрин чека и TXID.\n\n"
+        f"🆔 Ваш ID: `{callback.from_user.id}`",
+        parse_mode="Markdown"
+    )
 
-@dp.message(lambda message: message.photo)
+@dp.message(F.photo)
 async def handle_photo(message: types.Message):
     excuse = random.choice(EXCUSES)
-    await message.answer(f"{excuse}\n\n🆔 Ваш ID: `{message.from_user.id}`", parse_mode="Markdown")
+    await message.answer(
+        f"{excuse}\n\n🆔 Ваш ID: `{message.from_user.id}`",
+        parse_mode="Markdown"
+    )
 
 async def main():
     await dp.start_polling(bot)
