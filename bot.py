@@ -5,10 +5,8 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 
-TOKEN = os.getenv("BOT_TOKEN")
-if not TOKEN:
-    print("ОШИБКА: BOT_TOKEN не найден")
-    exit(1)
+# ТОКЕН ВСТАВЛЕН ПРЯМО В КОД
+TOKEN = "8857302639:AAGLXN4zoBp31InA3ocFKrR0cFIrZ6puOkc"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -19,7 +17,6 @@ EXCUSES = [
     "🔄 Технические работы. Задержка до 72 часов."
 ]
 
-# ✅ ИСПРАВЛЕННАЯ клавиатура
 main_kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🌟 Купить звёзды")],
