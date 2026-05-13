@@ -1,47 +1,33 @@
 import os
+import telebot
 from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
 
 TOKEN = "8904331723:AAFu0cLXdzyCa_kOyzG_8niUqPcLfPLAGEY"
+bot = telebot.TeleBot(TOKEN)
 
+# Веб-сервер для Render
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Bot is running")
 
-def run_web_server():
+def run_web():
     port = int(os.environ.get("PORT", 10000))
     server = HTTPServer(("0.0.0.0", port), Handler)
     server.serve_forever()
 
-import threading
-threading.Thread(target=run_web_server, daemon=True).start()
+threading.Thread(target=run_web, daemon=True).start()
 
-import requests
-import time
-last_id = 0
+# Обработчики команд
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.send_message(message.chat.id, f"✅ Бот работает!\nТвой ID: {message.chat.id}")
+
+@bot.message_handler(func=lambda m: True)
+def echo(message):
+    bot.send_message(message.chat.id, f"Твой ID: {message.chat.id}")
 
 print("Бот запущен")
-
-while True:
-    try:
-        url = f"https://api.telegram.org/bot{TOKEN}/getUpdates?offset={last_id+1}"
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        
-        if "result" in data:
-            for update in data["result"]:
-                last_id = update["update_id"]
-                if "message" in update:
-                    msg = update["message"]
-                    chat_id = msg["chat"]["id"]
-                    text = msg.get("text", "")
-                    
-                    if text == "/start":
-                        send_url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-                        send_data = {"chat_id": chat_id, "text": "✅ Бот работает!"}
-                        requests.post(send_url, json=send_data)
-        time.sleep(1)
-    except Exception as e:
-        print(f"Ошибка: {e}")
-        time.sleep(3)
+bot.infinity_polling()
