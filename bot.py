@@ -2,7 +2,6 @@ import os
 import telebot
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
-import re
 from datetime import datetime
 
 TOKEN = "8904331723:AAFu0cLXdzyCa_kOyzG_8niUqPcLfPLAGEY"
@@ -28,7 +27,6 @@ def run_web():
 
 threading.Thread(target=run_web, daemon=True).start()
 
-# Сохранение пользователя
 def save_user(chat_id, username):
     if chat_id not in users:
         users[chat_id] = {
@@ -39,38 +37,37 @@ def save_user(chat_id, username):
             "username": username or "нет"
         }
 
-# Клавиатуры
 def get_main_keyboard():
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row("🌟 Купить звёзды")
-    keyboard.row("👤 Профиль", "🆔 Мой ID")
-    return keyboard
+    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.row("🌟 Купить звёзды")
+    kb.row("👤 Профиль", "🆔 Мой ID")
+    return kb
 
 def get_stars_keyboard():
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row("⭐ 15 шт - 20 ₽")
-    keyboard.row("⭐ 25 шт - 48 ₽")
-    keyboard.row("⭐ 50 шт - 65 ₽")
-    keyboard.row("⭐ 100 шт - 126 ₽")
-    keyboard.row("◀️ Назад")
-    return keyboard
+    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.row("⭐ 15 шт - 20 ₽")
+    kb.row("⭐ 25 шт - 48 ₽")
+    kb.row("⭐ 50 шт - 65 ₽")
+    kb.row("⭐ 100 шт - 126 ₽")
+    kb.row("◀️ Назад")
+    return kb
 
 def get_payment_keyboard():
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row("🏦 СБП (Lava)", "💎 Криптовалюта (USDT)")
-    keyboard.row("◀️ Назад")
-    return keyboard
+    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.row("🏦 СБП (Lava)", "💎 Криптовалюта (USDT)")
+    kb.row("◀️ Назад")
+    return kb
 
 def get_back_keyboard():
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row("◀️ Назад")
-    return keyboard
+    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.row("◀️ Назад")
+    return kb
 
 def get_profile_keyboard():
-    keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.row("💰 Пополнить баланс")
-    keyboard.row("◀️ Назад")
-    return keyboard
+    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.row("💰 Пополнить баланс")
+    kb.row("◀️ Назад")
+    return kb
 
 def format_profile(chat_id):
     u = users.get(chat_id, {})
@@ -109,15 +106,15 @@ def buy_stars(message):
     chat_id = message.chat.id
     user_steps[chat_id] = {"step": "waiting_nickname"}
     bot.send_message(chat_id, "✏️ Напишите ваш @username для начисления звёзд:", reply_markup=get_back_keyboard())
-    @bot.message_handler(func=lambda m: m.text and m.text.startswith('@') and user_steps.get(m.chat.id, {}).get("step") == "waiting_nickname")
+
+@bot.message_handler(func=lambda m: m.text and m.text.startswith('@') and user_steps.get(m.chat.id, {}).get("step") == "waiting_nickname")
 def save_nickname(message):
     chat_id = message.chat.id
     username = message.text
     user_steps[chat_id]["username"] = username
     user_steps[chat_id]["step"] = "choosing_stars"
     bot.send_message(chat_id, f"✅ Никнейм {username} сохранён!\n\n⭐ Выберите количество звёзд:", reply_markup=get_stars_keyboard())
-
-@bot.message_handler(func=lambda m: m.text and "⭐" in m.text and "шт" in m.text and user_steps.get(m.chat.id, {}).get("step") == "choosing_stars")
+    @bot.message_handler(func=lambda m: m.text and "⭐" in m.text and "шт" in m.text and user_steps.get(m.chat.id, {}).get("step") == "choosing_stars")
 def choose_stars(message):
     chat_id = message.chat.id
     parts = message.text.split("-")
@@ -184,7 +181,8 @@ def handle_photo(message):
     
     else:
         bot.send_message(chat_id, "❓ Сначала выберите действие в меню", reply_markup=get_main_keyboard())
-        @bot.message_handler(func=lambda m: True)
+
+@bot.message_handler(func=lambda m: True)
 def unknown(message):
     bot.send_message(message.chat.id, "❓ Используйте кнопки меню", reply_markup=get_main_keyboard())
 
