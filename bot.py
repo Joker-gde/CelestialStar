@@ -1,12 +1,11 @@
 import asyncio
 import random
-import os
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 
-# ТОКЕН ВСТАВЛЕН ПРЯМО В КОД
-TOKEN = "8857302639:AAGLXN4zoBp31InA3ocFKrR0cFIrZ6puOkc"
+# Твой новый токен
+TOKEN = "8904331723:AAFu0cLXdzyCa_kOyzG_8niUqPcLfPLAGEY"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
