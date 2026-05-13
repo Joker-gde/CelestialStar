@@ -1,1 +1,1 @@
-aiogram
+urllib3
