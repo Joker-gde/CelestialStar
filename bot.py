@@ -2,8 +2,6 @@ import os
 import telebot
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
-import json
-import time
 import re
 from datetime import datetime
 
@@ -38,7 +36,7 @@ def save_user(chat_id, username):
             "balance": 0,
             "total_deposit": 0,
             "stars_bought": 0,
-            "username": username
+            "username": username or "нет"
         }
 
 # Клавиатуры
@@ -87,7 +85,7 @@ def format_profile(chat_id):
 @bot.message_handler(commands=['start'])
 def start(message):
     chat_id = message.chat.id
-    username = message.from_user.username or "user"
+    username = message.from_user.username
     save_user(chat_id, username)
     bot.send_message(chat_id, f"🌟 Добро пожаловать!\n🆔 Ваш ID: {chat_id}", reply_markup=get_main_keyboard())
 
@@ -108,32 +106,41 @@ def deposit(message):
 
 @bot.message_handler(func=lambda m: m.text == "🌟 Купить звёзды")
 def buy_stars(message):
-    bot.send_message(message.chat.id, "⭐ Выберите количество звёзд:", reply_markup=get_stars_keyboard())
+    chat_id = message.chat.id
+    user_steps[chat_id] = {"step": "waiting_nickname"}
+    bot.send_message(chat_id, "✏️ Напишите ваш @username для начисления звёзд:", reply_markup=get_back_keyboard())
+    @bot.message_handler(func=lambda m: m.text and m.text.startswith('@') and user_steps.get(m.chat.id, {}).get("step") == "waiting_nickname")
+def save_nickname(message):
+    chat_id = message.chat.id
+    username = message.text
+    user_steps[chat_id]["username"] = username
+    user_steps[chat_id]["step"] = "choosing_stars"
+    bot.send_message(chat_id, f"✅ Никнейм {username} сохранён!\n\n⭐ Выберите количество звёзд:", reply_markup=get_stars_keyboard())
 
-@bot.message_handler(func=lambda m: m.text and "⭐" in m.text and "шт" in m.text)
+@bot.message_handler(func=lambda m: m.text and "⭐" in m.text and "шт" in m.text and user_steps.get(m.chat.id, {}).get("step") == "choosing_stars")
 def choose_stars(message):
     chat_id = message.chat.id
     parts = message.text.split("-")
     stars = int(parts[0].replace("⭐", "").replace("шт", "").strip())
     price = int(parts[1].replace("₽", "").strip())
-    user_steps[chat_id] = {"step": "buying_stars", "stars": stars, "price": price}
+    user_steps[chat_id]["stars"] = stars
+    user_steps[chat_id]["price"] = price
+    user_steps[chat_id]["step"] = "choosing_payment"
     bot.send_message(chat_id, f"⭐ {stars} звёзд = {price} ₽\nВыберите способ оплаты:", reply_markup=get_payment_keyboard())
 
-@bot.message_handler(func=lambda m: m.text == "🏦 СБП (Lava)")
+@bot.message_handler(func=lambda m: m.text == "🏦 СБП (Lava)" and user_steps.get(m.chat.id, {}).get("step") == "choosing_payment")
 def pay_sbp(message):
     chat_id = message.chat.id
-    if chat_id in user_steps and user_steps[chat_id].get("step") == "buying_stars":
-        price = user_steps[chat_id]["price"]
-        bot.send_message(chat_id, f"💳 Оплатите {price} ₽ по СБП:\n<b>Lava кошелёк:</b> {LAVA_WALLET}\n\n✅ После оплаты отправьте ЛЮБОЕ ФОТО", reply_markup=get_back_keyboard(), parse_mode="HTML")
-        user_steps[chat_id]["step"] = "waiting_stars_payment"
+    price = user_steps[chat_id]["price"]
+    bot.send_message(chat_id, f"💳 Оплатите {price} ₽ по СБП:\n<b>Lava кошелёк:</b> {LAVA_WALLET}\n\n📸 ПОСЛЕ ОПЛАТЫ ОТПРАВЬТЕ СКРИН ЧЕКА", reply_markup=get_back_keyboard(), parse_mode="HTML")
+    user_steps[chat_id]["step"] = "waiting_stars_payment"
 
-@bot.message_handler(func=lambda m: m.text == "💎 Криптовалюта (USDT)")
+@bot.message_handler(func=lambda m: m.text == "💎 Криптовалюта (USDT)" and user_steps.get(m.chat.id, {}).get("step") == "choosing_payment")
 def pay_crypto(message):
     chat_id = message.chat.id
-    if chat_id in user_steps and user_steps[chat_id].get("step") == "buying_stars":
-        price = user_steps[chat_id]["price"]
-        bot.send_message(chat_id, f"💎 Оплатите {price} ₽ (≈{price/90:.2f} USDT):\n<b>Кошелёк:</b> <code>{CRYPTO_WALLET}</code>\n\n✅ После оплаты отправьте ЛЮБОЕ ФОТО", reply_markup=get_back_keyboard(), parse_mode="HTML")
-        user_steps[chat_id]["step"] = "waiting_stars_payment"
+    price = user_steps[chat_id]["price"]
+    bot.send_message(chat_id, f"💎 Оплатите {price} ₽ (≈{price/90:.2f} USDT):\n<b>Кошелёк:</b> <code>{CRYPTO_WALLET}</code>\n\n📸 ПОСЛЕ ОПЛАТЫ ОТПРАВЬТЕ СКРИН ЧЕКА", reply_markup=get_back_keyboard(), parse_mode="HTML")
+    user_steps[chat_id]["step"] = "waiting_stars_payment"
 
 @bot.message_handler(func=lambda m: m.text == "◀️ Назад")
 def back(message):
@@ -142,28 +149,42 @@ def back(message):
         del user_steps[chat_id]
     bot.send_message(chat_id, "Главное меню:", reply_markup=get_main_keyboard())
 
+@bot.message_handler(func=lambda m: m.text and m.text.isdigit() and user_steps.get(m.chat.id, {}).get("step") == "entering_amount")
+def handle_amount(message):
+    chat_id = message.chat.id
+    amount = int(message.text)
+    if amount < MIN_DEPOSIT:
+        bot.send_message(chat_id, f"❌ Минимальная сумма {MIN_DEPOSIT} ₽", reply_markup=get_back_keyboard())
+        return
+    user_steps[chat_id]["amount"] = amount
+    user_steps[chat_id]["step"] = "waiting_screenshot"
+    bot.send_message(chat_id, f"💰 Сумма: {amount} ₽\nВыберите способ оплаты:", reply_markup=get_payment_keyboard())
+
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
     chat_id = message.chat.id
-    if chat_id in user_steps:
-        step = user_steps[chat_id].get("step")
-        
-        if step == "waiting_screenshot":
-            amount = user_steps[chat_id].get("amount", 0)
-            users[chat_id]["balance"] += amount
-            users[chat_id]["total_deposit"] += amount
-            bot.send_message(chat_id, f"✅ Баланс пополнен на {amount} ₽!\n💰 Новый баланс: {users[chat_id]['balance']} ₽", reply_markup=get_profile_keyboard())
-            del user_steps[chat_id]
-        
-        elif step == "waiting_stars_payment":
-            stars = user_steps[chat_id].get("stars", 0)
-            users[chat_id]["stars_bought"] += stars
-            bot.send_message(chat_id, f"✅ Оплачено! ⭐ {stars} звёзд начислено.\nСпасибо за покупку!", reply_markup=get_main_keyboard())
-            del user_steps[chat_id]
+    if chat_id not in user_steps:
+        bot.send_message(chat_id, "❓ Сначала выберите действие в меню", reply_markup=get_main_keyboard())
+        return
+    
+    step = user_steps[chat_id].get("step")
+    
+    if step == "waiting_screenshot":
+        amount = user_steps[chat_id].get("amount", 0)
+        users[chat_id]["balance"] += amount
+        users[chat_id]["total_deposit"] += amount
+        bot.send_message(chat_id, f"✅ Баланс пополнен на {amount} ₽!\n💰 Новый баланс: {users[chat_id]['balance']} ₽", reply_markup=get_profile_keyboard())
+        del user_steps[chat_id]
+    
+    elif step == "waiting_stars_payment":
+        stars = user_steps[chat_id].get("stars", 0)
+        users[chat_id]["stars_bought"] += stars
+        bot.send_message(chat_id, f"✅ Оплачено! ⭐ {stars} звёзд начислено.\nСпасибо за покупку!", reply_markup=get_main_keyboard())
+        del user_steps[chat_id]
+    
     else:
         bot.send_message(chat_id, "❓ Сначала выберите действие в меню", reply_markup=get_main_keyboard())
-
-@bot.message_handler(func=lambda m: True)
+        @bot.message_handler(func=lambda m: True)
 def unknown(message):
     bot.send_message(message.chat.id, "❓ Используйте кнопки меню", reply_markup=get_main_keyboard())
 
